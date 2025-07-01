@@ -1,6 +1,6 @@
 # cadquery-direct-mesh-plugin
 
-This plugin is meant to allow users to go directly from a CadQuery assembly to a mesh without relying on Gmsh.
+CadQuery plugin to go directly from a CadQuery assembly to a mesh without relying on Gmsh.
 
 ## Goals
 

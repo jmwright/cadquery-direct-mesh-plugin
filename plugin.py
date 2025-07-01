@@ -11,7 +11,9 @@ import cadquery as cq
 # implicit_complement_material_tag: str | None = None,
 
 
-def to_mesh(self, imprint=False, reverse_winding=False, tolerance=0.1, angular_tolerance=0.1):
+def to_mesh(
+    self, imprint=True, reverse_winding=False, tolerance=0.1, angular_tolerance=0.1
+):
     """
     Converts an assembly to a custom mesh format defined by the CadQuery team.
     :param imprint: Whether or not the assembly should be impr
@@ -23,12 +25,18 @@ def to_mesh(self, imprint=False, reverse_winding=False, tolerance=0.1, angular_t
     triangles = []
     solids = []
     triangles_by_solid_by_face = []  # : list[list[tuple[int, int, int]]]
+    imprinted_assembly = None
+    imprinted_solids_with_orginal_ids = None
 
     # Imprinted assemblies end up being compounds, whereas you have to step through each of the
     # parts in an assembly and extract the solids.
     if imprint:
-        pass
-        # Save the compound in the solids list here
+        # Imprint the assembly and process it as a compound
+        (
+            imprinted_assembly,
+            imprinted_solids_with_orginal_ids,
+        ) = cq.occ_impl.assembly.imprint(self)
+        solids.append(imprinted_assembly)
     else:
         # Step through every child in the assembly and save their solids
         for child in self.children:
@@ -64,5 +72,7 @@ def to_mesh(self, imprint=False, reverse_winding=False, tolerance=0.1, angular_t
 
     print(vertices)
 
+
 # Patch the function(s) into the Workplane class
 cq.Assembly.toMesh = to_mesh
+cq.Assembly.to_mesh = to_mesh
