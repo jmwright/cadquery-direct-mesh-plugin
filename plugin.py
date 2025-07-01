@@ -64,7 +64,5 @@ def to_mesh(self, imprint=False, reverse_winding=False, tolerance=0.1, angular_t
 
     print(vertices)
 
-    # print(solids)
-
 # Patch the function(s) into the Workplane class
 cq.Assembly.toMesh = to_mesh
