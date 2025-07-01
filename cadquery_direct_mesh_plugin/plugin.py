@@ -70,7 +70,7 @@ def to_mesh(
                 # Append the vertices for this face and triangle
                 vertices.append(temp_tris)
 
-    return { "vertices": vertices }
+    return {"vertices": vertices}
 
 
 # Patch the function(s) into the Workplane class

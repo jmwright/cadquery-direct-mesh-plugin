@@ -1,6 +1,7 @@
 import cadquery as cq
 import cadquery_direct_mesh_plugin
 
+
 def test_basic_assembly():
     """
     Tests to make sure a basic assembly will work.
