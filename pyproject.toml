@@ -3,7 +3,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "cadquery-direct-mesh-plugin"
+name = "cadquery_direct_mesh_plugin"
 version = "0.1.0"
 dependencies = [
   "cadquery",
