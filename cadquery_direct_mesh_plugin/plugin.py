@@ -78,7 +78,7 @@ def to_mesh(
                     # The vertex we just added is the one we need to track
                     triangle_vertex_indices.append(len(vertices) - 1)
 
-    return {"vertices": vertices}
+    return {"vertices": vertices, "triangle_vertex_indices": triangle_vertex_indices}
 
 
 # Patch the function(s) into the Workplane class

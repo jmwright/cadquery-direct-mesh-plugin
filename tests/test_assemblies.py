@@ -1,5 +1,6 @@
 import cadquery as cq
 import cadquery_direct_mesh_plugin
+from model_benchmark_zoo import Cuboid
 
 
 def test_basic_assembly():
@@ -8,9 +9,10 @@ def test_basic_assembly():
     """
 
     # Create a simple test assembly
-    assy = cq.Assembly()
-    assy.add(cq.Workplane().box(10, 10, 10), name="box_1")
+    cuboid = Cuboid(width=10)
+    assy = cuboid.cadquery_assembly()
 
+    # Call the main conversion method we want to test
     mesh = assy.toMesh()
 
     # Make sure we have the correct number of vertices
