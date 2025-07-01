@@ -14,4 +14,4 @@ def test_basic_assembly():
     mesh = assy.toMesh()
 
     # Make sure we have the correct number of vertices
-    assert len(mesh["vertices"]) == 24
+    assert len(mesh["vertices"]) == 8

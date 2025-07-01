@@ -23,6 +23,7 @@ def to_mesh(
     # To keep track of the vertices and triangles in the mesh
     vertices = []
     triangles = []
+    triangle_vertex_indices = []
     solids = []
     triangles_by_solid_by_face = []  # : list[list[tuple[int, int, int]]]
     imprinted_assembly = None
@@ -67,8 +68,15 @@ def to_mesh(
                 v_trsf = v.Transformed(Trsf)
                 temp_tris = (v_trsf.X(), v_trsf.Y(), v_trsf.Z())
 
-                # Append the vertices for this face and triangle
-                vertices.append(temp_tris)
+                # Handle duplicate vertices
+                if temp_tris in vertices:
+                    triangle_vertex_indices.append(vertices.index(temp_tris))
+                else:
+                    # Append the vertices for this face and triangle
+                    vertices.append(temp_tris)
+
+                    # The vertex we just added is the one we need to track
+                    triangle_vertex_indices.append(len(vertices) - 1)
 
     return {"vertices": vertices}
 
