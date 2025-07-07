@@ -22,10 +22,9 @@ def to_mesh(
 
     # To keep track of the vertices and triangles in the mesh
     vertices = []
-    triangles = []
-    triangle_vertex_indices = []
+    face_triangles = []
     solids = []
-    triangles_by_solid_by_face = []  # : list[list[tuple[int, int, int]]]
+    solid_face_triangle = []
     imprinted_assembly = None
     imprinted_solids_with_orginal_ids = None
 
@@ -61,24 +60,44 @@ def to_mesh(
             # Save the transformation so that we can place vertices in the correct locations later
             Trsf = loc.Transformation()
 
-            # Step through all the triangle vertices
-            temp_tris = None
-            for i in range(1, face_mesh.NbNodes() + 1):
-                v = face_mesh.Node(i)
-                v_trsf = v.Transformed(Trsf)
-                temp_tris = (v_trsf.X(), v_trsf.Y(), v_trsf.Z())
+            # Step through the triangles of the face
+            cur_triangles = []
+            for i in range(1, face_mesh.NbTriangles() + 1):
+                triangle_vertex_indices = []
 
-                # Handle duplicate vertices
-                if temp_tris in vertices:
-                    triangle_vertex_indices.append(vertices.index(temp_tris))
-                else:
-                    # Append the vertices for this face and triangle
-                    vertices.append(temp_tris)
+                # Get the current triangle and its index vertices
+                cur_tri = face_mesh.Triangle(i)
+                idx_1, idx_2, idx_3 = cur_tri.Get()
 
-                    # The vertex we just added is the one we need to track
-                    triangle_vertex_indices.append(len(vertices) - 1)
+                # Save the vertices
+                tri_verts = []
+                tri_verts.append(face_mesh.Node(idx_1))
+                tri_verts.append(face_mesh.Node(idx_2))
+                tri_verts.append(face_mesh.Node(idx_3))
 
-    return {"vertices": vertices, "triangle_vertex_indices": triangle_vertex_indices}
+                for vert in tri_verts:
+                    # Apply the assembly location transformation to each vertex
+                    v_trsf = vert.Transformed(Trsf)
+                    temp_tris = (v_trsf.X(), v_trsf.Y(), v_trsf.Z())
+
+                    # Handle duplicate vertices
+                    if temp_tris in vertices:
+                        triangle_vertex_indices.append(vertices.index(temp_tris))
+                    else:
+                        # Append the vertices for this face and triangle
+                        vertices.append(temp_tris)
+
+                        # The vertex we just added is the one we need to track
+                        triangle_vertex_indices.append(len(vertices) - 1)
+
+                cur_triangles.append(triangle_vertex_indices)
+
+            # Save this triangle for the current face
+            face_triangles.append(cur_triangles)
+
+        solid_face_triangle.append(face_triangles)
+
+    return {"vertices": vertices, "solid_face_triangle_vertex_map": solid_face_triangle}
 
 
 # Patch the function(s) into the Workplane class
