@@ -27,6 +27,7 @@ def to_mesh(
     solid_face_triangle = []
     imprinted_assembly = None
     imprinted_solids_with_orginal_ids = None
+    solid_colors = []
 
     # Imprinted assemblies end up being compounds, whereas you have to step through each of the
     # parts in an assembly and extract the solids.
@@ -46,6 +47,9 @@ def to_mesh(
                 solids.append(obj.val())
             else:
                 solids.append(obj)
+
+            # Keep track of any metadata that should be included with the solids
+            solid_colors.append(child.color.toTuple())
 
     # Step through all of the collected solids and their respective faces to get the vertices
     for solid in solids:
@@ -97,7 +101,7 @@ def to_mesh(
 
         solid_face_triangle.append(face_triangles)
 
-    return {"vertices": vertices, "solid_face_triangle_vertex_map": solid_face_triangle}
+    return {"vertices": vertices, "solid_face_triangle_vertex_map": solid_face_triangle, "solid_colors": solid_colors}
 
 
 # Patch the function(s) into the Workplane class
