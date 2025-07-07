@@ -101,7 +101,11 @@ def to_mesh(
 
         solid_face_triangle.append(face_triangles)
 
-    return {"vertices": vertices, "solid_face_triangle_vertex_map": solid_face_triangle, "solid_colors": solid_colors}
+    return {
+        "vertices": vertices,
+        "solid_face_triangle_vertex_map": solid_face_triangle,
+        "solid_colors": solid_colors,
+    }
 
 
 # Patch the function(s) into the Workplane class
