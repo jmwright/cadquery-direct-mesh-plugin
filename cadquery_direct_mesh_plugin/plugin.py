@@ -22,12 +22,12 @@ def to_mesh(
 
     # To keep track of the vertices and triangles in the mesh
     vertices = []
-    face_triangles = []
     solids = []
     solid_face_triangle = []
     imprinted_assembly = None
     imprinted_solids_with_orginal_ids = None
     solid_colors = []
+    solid_locs = []
 
     # Imprinted assemblies end up being compounds, whereas you have to step through each of the
     # parts in an assembly and extract the solids.
@@ -38,6 +38,10 @@ def to_mesh(
             imprinted_solids_with_orginal_ids,
         ) = cq.occ_impl.assembly.imprint(self)
         solids.append(imprinted_assembly)
+
+        # Keep track of the colors and location of each of the solids
+        solid_colors.append((0.5, 0.5, 0.5, 1.0))
+        solid_locs.append(cq.Location())
     else:
         # Step through every child in the assembly and save their solids
         for child in self.children:
@@ -48,11 +52,16 @@ def to_mesh(
             else:
                 solids.append(obj)
 
-            # Keep track of any metadata that should be included with the solids
+            # Keep track of the colors and location of each of the solids
             solid_colors.append(child.color.toTuple())
+            solid_locs.append(child.loc)
 
     # Step through all of the collected solids and their respective faces to get the vertices
+    solid_idx = 0
     for solid in solids:
+        # Reset this each time so that we get the correct number of faces per solid
+        face_triangles = []
+
         for face in solid.faces():
             # Location information of the face to place the vertices and edges correctly
             loc = TopLoc_Location()
@@ -60,6 +69,10 @@ def to_mesh(
             # Perform the tessellation
             BRepMesh_IncrementalMesh(face.wrapped, tolerance, True, angular_tolerance)
             face_mesh = BRep_Tool.Triangulation_s(face.wrapped, loc)
+
+            # If this is not an imprinted assembly, override the location of the triangulation
+            if not imprint:
+                loc = solid_locs[solid_idx].wrapped
 
             # Save the transformation so that we can place vertices in the correct locations later
             Trsf = loc.Transformation()
@@ -101,7 +114,13 @@ def to_mesh(
 
         solid_face_triangle.append(face_triangles)
 
-    return {"vertices": vertices, "solid_face_triangle_vertex_map": solid_face_triangle, "solid_colors": solid_colors}
+        solid_idx += 1
+
+    return {
+        "vertices": vertices,
+        "solid_face_triangle_vertex_map": solid_face_triangle,
+        "solid_colors": solid_colors,
+    }
 
 
 # Patch the function(s) into the Workplane class
