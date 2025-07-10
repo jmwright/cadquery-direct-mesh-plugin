@@ -75,7 +75,7 @@ def to_mesh(
         # Reset this each time so that we get the correct number of faces per solid
         face_triangles = []
 
-        for face in solid.faces():
+        for face in solid.Faces():
             # Location information of the face to place the vertices and edges correctly
             loc = TopLoc_Location()
 
