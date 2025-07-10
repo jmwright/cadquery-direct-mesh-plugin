@@ -1,6 +1,7 @@
 from OCP.TopLoc import TopLoc_Location
 from OCP.BRep import BRep_Tool
 from OCP.BRepMesh import BRepMesh_IncrementalMesh
+from OCP import GCPnts, BRepAdaptor
 import cadquery as cq
 
 
@@ -12,7 +13,12 @@ import cadquery as cq
 
 
 def to_mesh(
-    self, imprint=True, reverse_winding=False, tolerance=0.1, angular_tolerance=0.1
+    self,
+    imprint=True,
+    tolerance=0.1,
+    angular_tolerance=0.1,
+    include_brep_edges=False,
+    include_brep_vertices=False,
 ):
     """
     Converts an assembly to a custom mesh format defined by the CadQuery team.
@@ -28,6 +34,8 @@ def to_mesh(
     imprinted_solids_with_orginal_ids = None
     solid_colors = []
     solid_locs = []
+    solid_brep_edge_segments = []
+    solid_brep_vertices = []
 
     # Imprinted assemblies end up being compounds, whereas you have to step through each of the
     # parts in an assembly and extract the solids.
@@ -52,8 +60,13 @@ def to_mesh(
             else:
                 solids.append(obj)
 
-            # Keep track of the colors and location of each of the solids
-            solid_colors.append(child.color.toTuple())
+            # Use the color set for the assembly component, or use a default color
+            if child.color:
+                solid_colors.append(child.color.toTuple())
+            else:
+                solid_colors.append((0.5, 0.5, 0.5, 1.0))
+
+            # Keep track of the location of each of the solids
             solid_locs.append(child.loc)
 
     # Step through all of the collected solids and their respective faces to get the vertices
@@ -114,12 +127,96 @@ def to_mesh(
 
         solid_face_triangle.append(face_triangles)
 
+        # If the caller wants to track edges, include them
+        if include_brep_edges:
+            # If this is not an imprinted assembly, override the location of the edges
+            loc = TopLoc_Location()
+            if not imprint:
+                loc = solid_locs[solid_idx].wrapped
+
+            # Save the transformation so that we can place vertices in the correct locations later
+            Trsf = loc.Transformation()
+
+            # Add CadQuery-reported edges
+            current_segments = []
+            for edge in solid.edges():
+                # We need to handle different kinds of edges differently
+                gt = edge.geomType()
+
+                # Line edges are just point to point
+                if gt == "LINE":
+                    start = edge.startPoint().toPnt()
+                    end = edge.endPoint().toPnt()
+
+                    # Apply the assembly location transformation to each vertex
+                    start_trsf = start.Transformed(Trsf)
+                    located_start = (start_trsf.X(), start_trsf.Y(), start_trsf.Z())
+                    end_trsf = end.Transformed(Trsf)
+                    located_end = (end_trsf.X(), end_trsf.Y(), end_trsf.Z())
+
+                    # Save the start and end points for the edge
+                    current_segments.append([located_start, located_end])
+                # If dealing with some sort of arc, discretize it into individual lines
+                elif (
+                    gt == "CIRCLE"
+                    or gt == "ARC"
+                    or gt == "SPLINE"
+                    or gt == "BSPLINE"
+                    or gt == "ELLIPSE"
+                ):
+                    # Discretize the curve
+                    disc = GCPnts.GCPnts_TangentialDeflection(
+                        BRepAdaptor.BRepAdaptor_Curve(edge.wrapped),
+                        tolerance,
+                        angular_tolerance,
+                    )
+
+                    # Add each of the discretized sections to the edge list
+                    if disc.NbPoints() > 1:
+                        for i in range(2, disc.NbPoints() + 1):
+                            p_0 = disc.Value(i - 1)
+                            p_1 = disc.Value(i)
+
+                            # Apply the assembly location transformation to each vertex
+                            p_0_trsf = p_0.Transformed(Trsf)
+                            located_p_0 = (p_0_trsf.X(), p_0_trsf.Y(), p_0_trsf.Z())
+                            p_1_trsf = p_1.Transformed(Trsf)
+                            located_p_1 = (p_1_trsf.X(), p_1_trsf.Y(), p_1_trsf.Z())
+
+                            # Save the start and end points for the edge
+                            current_segments.append([located_p_0, located_p_1])
+
+            solid_brep_edge_segments.append(current_segments)
+
+        # Add CadQuery-reported vertices, if requested
+        if include_brep_vertices:
+            # If this is not an imprinted assembly, override the location of the edges
+            loc = TopLoc_Location()
+            if not imprint:
+                loc = solid_locs[solid_idx].wrapped
+
+            # Save the transformation so that we can place vertices in the correct locations later
+            Trsf = loc.Transformation()
+
+            current_vertices = []
+            for vertex in solid.vertices():
+                p = BRep_Tool.Pnt_s(vertex.wrapped)
+
+                # Apply the assembly location transformation to each vertex
+                p_trsf = p.Transformed(Trsf)
+                located_p = (p_trsf.X(), p_trsf.Y(), p_trsf.Z())
+                current_vertices.append(located_p)
+
+            solid_brep_vertices.append(current_vertices)
+
         solid_idx += 1
 
     return {
         "vertices": vertices,
         "solid_face_triangle_vertex_map": solid_face_triangle,
         "solid_colors": solid_colors,
+        "solid_brep_edge_segments": solid_brep_edge_segments,
+        "solid_brep_vertices": solid_brep_vertices,
     }
 
 
