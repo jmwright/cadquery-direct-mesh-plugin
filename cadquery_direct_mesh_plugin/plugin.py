@@ -22,12 +22,17 @@ def to_mesh(
 ):
     """
     Converts an assembly to a custom mesh format defined by the CadQuery team.
-    :param imprint: Whether or not the assembly should be impr
-    :type bar: int
+
+    :param imprint: Whether or not the assembly should be imprinted
+    :param tolerance: Tessellation tolerance for mesh generation
+    :param angular_tolerance: Angular tolerance for tessellation
+    :param include_brep_edges: Whether to include BRep edge segments
+    :param include_brep_vertices: Whether to include BRep vertices
     """
 
     # To keep track of the vertices and triangles in the mesh
     vertices = []
+    vertex_map = {}
     solids = []
     solid_face_triangle = {}
     imprinted_assembly = None
@@ -92,35 +97,35 @@ def to_mesh(
             # Save the transformation so that we can place vertices in the correct locations later
             Trsf = loc.Transformation()
 
+            # Pre-process all vertices from the face mesh for better performance
+            face_vertices = {}  # Map from face mesh node index to global vertex index
+            for node_idx in range(1, face_mesh.NbNodes() + 1):
+                node = face_mesh.Node(node_idx)
+                v_trsf = node.Transformed(Trsf)
+                vertex_coords = (v_trsf.X(), v_trsf.Y(), v_trsf.Z())
+
+                # Use dictionary for O(1) lookup instead of O(n) list operations
+                if vertex_coords in vertex_map:
+                    face_vertices[node_idx] = vertex_map[vertex_coords]
+                else:
+                    global_vertex_idx = len(vertices)
+                    vertices.append(vertex_coords)
+                    vertex_map[vertex_coords] = global_vertex_idx
+                    face_vertices[node_idx] = global_vertex_idx
+
             # Step through the triangles of the face
             cur_triangles = []
             for i in range(1, face_mesh.NbTriangles() + 1):
-                triangle_vertex_indices = []
-
                 # Get the current triangle and its index vertices
                 cur_tri = face_mesh.Triangle(i)
                 idx_1, idx_2, idx_3 = cur_tri.Get()
 
-                # Save the vertices
-                tri_verts = []
-                tri_verts.append(face_mesh.Node(idx_1))
-                tri_verts.append(face_mesh.Node(idx_2))
-                tri_verts.append(face_mesh.Node(idx_3))
-
-                for vert in tri_verts:
-                    # Apply the assembly location transformation to each vertex
-                    v_trsf = vert.Transformed(Trsf)
-                    temp_tris = (v_trsf.X(), v_trsf.Y(), v_trsf.Z())
-
-                    # Handle duplicate vertices
-                    if temp_tris in vertices:
-                        triangle_vertex_indices.append(vertices.index(temp_tris))
-                    else:
-                        # Append the vertices for this face and triangle
-                        vertices.append(temp_tris)
-
-                        # The vertex we just added is the one we need to track
-                        triangle_vertex_indices.append(len(vertices) - 1)
+                # Look up pre-processed vertex indices - O(1) operation
+                triangle_vertex_indices = [
+                    face_vertices[idx_1],
+                    face_vertices[idx_2],
+                    face_vertices[idx_3],
+                ]
 
                 cur_triangles.append(triangle_vertex_indices)
 
@@ -162,13 +167,7 @@ def to_mesh(
                     # Save the start and end points for the edge
                     current_segments.append([located_start, located_end])
                 # If dealing with some sort of arc, discretize it into individual lines
-                elif (
-                    gt == "CIRCLE"
-                    or gt == "ARC"
-                    or gt == "SPLINE"
-                    or gt == "BSPLINE"
-                    or gt == "ELLIPSE"
-                ):
+                elif gt in ("CIRCLE", "ARC", "SPLINE", "BSPLINE", "ELLIPSE"):
                     # Discretize the curve
                     disc = GCPnts.GCPnts_TangentialDeflection(
                         BRepAdaptor.BRepAdaptor_Curve(edge.wrapped),
