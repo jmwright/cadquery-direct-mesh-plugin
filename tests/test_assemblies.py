@@ -13,6 +13,8 @@ from model_benchmark_zoo import (
     SimpleTokamak,
 )
 
+# from cad_to_dagmc.core import vertices_to_h5m
+
 
 def test_basic_assembly():
     """
@@ -30,7 +32,7 @@ def test_basic_assembly():
     assert len(mesh["vertices"]) == 8
 
     # Make sure we have the correct number of faces
-    assert len(mesh["solid_face_triangle_vertex_map"][0]) == 6
+    assert len(mesh["solid_face_triangle_vertex_map"][1]) == 6
 
 
 def test_basic_multipart_assembly():
@@ -63,7 +65,7 @@ def test_basic_multipart_assembly():
     assert len(mesh["solid_face_triangle_vertex_map"]) == 2
 
     # Make sure that each of the solids has the correct number of faces
-    assert len(mesh["solid_face_triangle_vertex_map"][0]) == 6
+    assert len(mesh["solid_face_triangle_vertex_map"][1]) == 6
 
 
 def test_edge_handling():
@@ -216,3 +218,12 @@ def test_model_zoo_shapes():
     mesh = assy.toMesh(imprint=True)
     assert len(mesh["vertices"]) == 8517  # Number of vertices
     assert len(mesh["solid_face_triangle_vertex_map"]) == 1  # Number of solids
+
+
+# def test_cad_to_dagmc():
+#     # Create a simple sample assembly and mesh it
+#     cube_1 = cq.Workplane().box(10, 10, 10)
+#     assy = cq.Assembly()
+#     assy.add(cube_1)
+#     mesh = assy.toMesh()
+#     vertices_to_h5m(mesh["vertices"], mesh["solid_face_triangle_vertex_map"], ["copper"])

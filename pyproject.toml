@@ -29,11 +29,12 @@ dev = [
   "pytest",
   "black",
   "model_benchmark_zoo@git+https://github.com/fusion-energy/model_benchmark_zoo.git",
+#  "cad_to_dagmc@git+https://github.com/fusion-energy/cad_to_dagmc.git",
 ]
 
 [tool.hatch.metadata]
 allow-direct-references = true
 
 [project.urls]
-Repository = "https://github.com/CadQuery/assembly-mesh-plugin.git"
-"Bug Tracker" = "https://github.com/CadQuery/assembly-mesh-plugin/issues"
+Repository = "https://github.com/jmwright/cadquery-direct-mesh-plugin.git"
+"Bug Tracker" = "https://github.com/jmwright/cadquery-direct-mesh-plugin/issues"

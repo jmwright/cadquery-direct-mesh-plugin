@@ -29,7 +29,7 @@ def to_mesh(
     # To keep track of the vertices and triangles in the mesh
     vertices = []
     solids = []
-    solid_face_triangle = []
+    solid_face_triangle = {}
     imprinted_assembly = None
     imprinted_solids_with_orginal_ids = None
     solid_colors = []
@@ -70,11 +70,13 @@ def to_mesh(
             solid_locs.append(child.loc)
 
     # Step through all of the collected solids and their respective faces to get the vertices
-    solid_idx = 0
+    solid_idx = 1  # We start at 1 to mimic gmsh
     for solid in solids:
         # Reset this each time so that we get the correct number of faces per solid
-        face_triangles = []
+        face_triangles = {}
 
+        # Walk through all the faces
+        face_idx = 1  # We start at id of 1 to mimic gmsh
         for face in solid.Faces():
             # Location information of the face to place the vertices and edges correctly
             loc = TopLoc_Location()
@@ -85,7 +87,7 @@ def to_mesh(
 
             # If this is not an imprinted assembly, override the location of the triangulation
             if not imprint:
-                loc = solid_locs[solid_idx].wrapped
+                loc = solid_locs[solid_idx - 1].wrapped
 
             # Save the transformation so that we can place vertices in the correct locations later
             Trsf = loc.Transformation()
@@ -123,16 +125,19 @@ def to_mesh(
                 cur_triangles.append(triangle_vertex_indices)
 
             # Save this triangle for the current face
-            face_triangles.append(cur_triangles)
+            face_triangles[face_idx] = cur_triangles
 
-        solid_face_triangle.append(face_triangles)
+            # Move to the next face
+            face_idx += 1
+
+        solid_face_triangle[solid_idx] = face_triangles
 
         # If the caller wants to track edges, include them
         if include_brep_edges:
             # If this is not an imprinted assembly, override the location of the edges
             loc = TopLoc_Location()
             if not imprint:
-                loc = solid_locs[solid_idx].wrapped
+                loc = solid_locs[solid_idx - 1].wrapped
 
             # Save the transformation so that we can place vertices in the correct locations later
             Trsf = loc.Transformation()
@@ -193,7 +198,7 @@ def to_mesh(
             # If this is not an imprinted assembly, override the location of the edges
             loc = TopLoc_Location()
             if not imprint:
-                loc = solid_locs[solid_idx].wrapped
+                loc = solid_locs[solid_idx - 1].wrapped
 
             # Save the transformation so that we can place vertices in the correct locations later
             Trsf = loc.Transformation()
@@ -209,6 +214,7 @@ def to_mesh(
 
             solid_brep_vertices.append(current_vertices)
 
+        # Move to the next solid
         solid_idx += 1
 
     return {
