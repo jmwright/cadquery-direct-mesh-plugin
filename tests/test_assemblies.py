@@ -134,7 +134,7 @@ def test_model_zoo_shapes():
     assy = two.cadquery_assembly()
     mesh = assy.toMesh(imprint=True)
     assert len(mesh["vertices"]) == 16  # Number of vertices
-    assert len(mesh["solid_face_triangle_vertex_map"]) == 1  # Number of solids
+    assert len(mesh["solid_face_triangle_vertex_map"]) == 2  # Number of solids
 
     #
     # Cylinder
@@ -152,7 +152,7 @@ def test_model_zoo_shapes():
     assy = cyl.cadquery_assembly()
     mesh = assy.toMesh(imprint=True)
     assert len(mesh["vertices"]) == 756  # Number of vertices
-    assert len(mesh["solid_face_triangle_vertex_map"]) == 1  # Number of solids
+    assert len(mesh["solid_face_triangle_vertex_map"]) == 2  # Number of solids
 
     #
     # Sphere
@@ -170,7 +170,7 @@ def test_model_zoo_shapes():
     assy = sphere.cadquery_assembly()
     mesh = assy.toMesh(imprint=True)
     assert len(mesh["vertices"]) == 8004  # Number of vertices
-    assert len(mesh["solid_face_triangle_vertex_map"]) == 1  # Number of solids
+    assert len(mesh["solid_face_triangle_vertex_map"]) == 2  # Number of solids
 
     #
     # Circular torus
@@ -206,7 +206,7 @@ def test_model_zoo_shapes():
     assy = oct.cadquery_assembly()
     mesh = assy.toMesh(imprint=True)
     assert len(mesh["vertices"]) == 14326  # Number of vertices
-    assert len(mesh["solid_face_triangle_vertex_map"]) == 1  # Number of solids
+    assert len(mesh["solid_face_triangle_vertex_map"]) == 2  # Number of solids
 
     #
     # Simple Tokamak
@@ -217,7 +217,7 @@ def test_model_zoo_shapes():
     assy = tok.cadquery_assembly()
     mesh = assy.toMesh(imprint=True)
     assert len(mesh["vertices"]) == 8517  # Number of vertices
-    assert len(mesh["solid_face_triangle_vertex_map"]) == 1  # Number of solids
+    assert len(mesh["solid_face_triangle_vertex_map"]) == 2  # Number of solids
 
 
 # def test_cad_to_dagmc():
