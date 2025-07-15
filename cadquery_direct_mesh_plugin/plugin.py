@@ -50,7 +50,10 @@ def to_mesh(
             imprinted_assembly,
             imprinted_solids_with_orginal_ids,
         ) = cq.occ_impl.assembly.imprint(self)
-        solids.append(imprinted_assembly)
+
+        # Extract the solids from the imprinted assembly because we should not mesh the compound
+        for solid in imprinted_assembly.Solids():
+            solids.append(solid)
 
         # Keep track of the colors and location of each of the solids
         solid_colors.append((0.5, 0.5, 0.5, 1.0))
@@ -222,6 +225,8 @@ def to_mesh(
         "solid_colors": solid_colors,
         "solid_brep_edge_segments": solid_brep_edge_segments,
         "solid_brep_vertices": solid_brep_vertices,
+        "imprinted_assembly": imprinted_assembly,
+        "imprinted_solids_with_orginal_ids": imprinted_solids_with_orginal_ids,
     }
 
 
