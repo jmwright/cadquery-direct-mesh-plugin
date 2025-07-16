@@ -2,6 +2,7 @@ from OCP.TopLoc import TopLoc_Location
 from OCP.BRep import BRep_Tool
 from OCP.BRepMesh import BRepMesh_IncrementalMesh
 from OCP import GCPnts, BRepAdaptor
+from OCP.TopAbs import TopAbs_REVERSED
 import cadquery as cq
 
 
@@ -86,6 +87,11 @@ def to_mesh(
         # Walk through all the faces
         face_idx = 1  # We start at id of 1 to mimic gmsh
         for face in solid.Faces():
+            # Figure out if the face has a reversed orientation so we can handle the triangles accordingly
+            is_reversed = False
+            if face.wrapped.Orientation() == TopAbs_REVERSED:
+                is_reversed = True
+
             # Location information of the face to place the vertices and edges correctly
             loc = TopLoc_Location()
 
@@ -124,11 +130,18 @@ def to_mesh(
                 idx_1, idx_2, idx_3 = cur_tri.Get()
 
                 # Look up pre-processed vertex indices - O(1) operation
-                triangle_vertex_indices = [
-                    face_vertices[idx_1],
-                    face_vertices[idx_2],
-                    face_vertices[idx_3],
-                ]
+                if is_reversed:
+                    triangle_vertex_indices = [
+                        face_vertices[idx_1],
+                        face_vertices[idx_3],
+                        face_vertices[idx_2],
+                    ]
+                else:
+                    triangle_vertex_indices = [
+                        face_vertices[idx_1],
+                        face_vertices[idx_2],
+                        face_vertices[idx_3],
+                    ]
 
                 cur_triangles.append(triangle_vertex_indices)
 

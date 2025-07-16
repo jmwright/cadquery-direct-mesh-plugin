@@ -218,12 +218,3 @@ def test_model_zoo_shapes():
     mesh = assy.toMesh(imprint=True)
     assert len(mesh["vertices"]) == 8517  # Number of vertices
     assert len(mesh["solid_face_triangle_vertex_map"]) == 2  # Number of solids
-
-
-# def test_cad_to_dagmc():
-#     # Create a simple sample assembly and mesh it
-#     cube_1 = cq.Workplane().box(10, 10, 10)
-#     assy = cq.Assembly()
-#     assy.add(cube_1)
-#     mesh = assy.toMesh()
-#     vertices_to_h5m(mesh["vertices"], mesh["solid_face_triangle_vertex_map"], ["copper"])
