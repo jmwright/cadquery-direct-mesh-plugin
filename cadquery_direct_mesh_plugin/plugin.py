@@ -2,15 +2,51 @@ from OCP.TopLoc import TopLoc_Location
 from OCP.BRep import BRep_Tool
 from OCP.BRepMesh import BRepMesh_IncrementalMesh
 from OCP import GCPnts, BRepAdaptor
-from OCP.TopAbs import TopAbs_REVERSED
+from OCP.TopAbs import TopAbs_REVERSED, TopAbs_IN
+from OCP.gp import gp_Pnt, gp_Vec
 import cadquery as cq
 
 
-# vertices: list[tuple[float, float, float]] | list["cadquery.occ_impl.geom.Vector"],
-# triangles_by_solid_by_face: list[list[tuple[int, int, int]]],
-# material_tags: list[str],
-# h5m_filename: str = "dagmc.h5m",
-# implicit_complement_material_tag: str | None = None,
+def _is_interior_face(face, solid, tolerance=0.01):
+    """
+    Determine if a face is interior to a solid (like a cavity wall).
+
+    This is more robust than just checking face orientation, as it considers
+    the geometric relationship between the face and the solid.
+    """
+    # Get geometric surface and parameter bounds
+    surf = BRep_Tool.Surface_s(face.wrapped)
+    u_min, u_max, v_min, v_max = face._uvBounds()
+
+    # # Take center point in UV space on the face
+    u = (u_min + u_max) * 0.5
+    v = (v_min + v_max) * 0.5
+    face_pnt = surf.Value(u, v)
+
+    # Determine if the face is most likely inside the solid
+    is_inside = solid.isInside((face_pnt.X(), face_pnt.Y(), face_pnt.Z()))
+
+    # Determine if the normal of the face points generally towards to the center of the solid
+    is_pointing_inward = False
+    face_normal = face.normalAt((face_pnt.X(), face_pnt.Y(), face_pnt.Z()))
+    solid_center = solid.Center()
+
+    to_center = gp_Vec(face_pnt, gp_Pnt(solid_center.x, solid_center.y, solid_center.z))
+
+    # Dot product: negative = toward, positive = away
+    dot = face_normal.dot(cq.Vector(to_center.Normalized()))
+
+    if dot < 0:
+        is_pointing_inward = False
+    else:
+        is_pointing_inward = True
+
+    # If the face seems to be inside the solid and its normal points inwards, it should be an internal face
+    is_internal_face = False
+    if is_inside and is_pointing_inward:
+        is_internal_face = True
+
+    return is_internal_face
 
 
 def to_mesh(
@@ -80,6 +116,9 @@ def to_mesh(
 
     # Step through all of the collected solids and their respective faces to get the vertices
     solid_idx = 1  # We start at 1 to mimic gmsh
+    interior_faces = []
+    exterior_faces = []
+
     for solid in solids:
         # Reset this each time so that we get the correct number of faces per solid
         face_triangles = {}
@@ -87,10 +126,23 @@ def to_mesh(
         # Walk through all the faces
         face_idx = 1  # We start at id of 1 to mimic gmsh
         for face in solid.Faces():
+            # If we have already processed this face, skip it
+            # if face in interior_faces or face in exterior_faces:
+            #     continue
+
             # Figure out if the face has a reversed orientation so we can handle the triangles accordingly
             is_reversed = False
             if face.wrapped.Orientation() == TopAbs_REVERSED:
                 is_reversed = True
+
+            # For interior faces (like cavities), we need to check the face normal direction
+            # relative to the solid to ensure proper winding
+            is_interior_face = _is_interior_face(face, solid, tolerance)
+            if is_interior_face:
+                interior_faces.append(face)
+                is_reversed = not is_reversed
+            else:
+                exterior_faces.append(face)
 
             # Location information of the face to place the vertices and edges correctly
             loc = TopLoc_Location()
@@ -245,4 +297,3 @@ def to_mesh(
 
 # Patch the function(s) into the Workplane class
 cq.Assembly.toMesh = to_mesh
-cq.Assembly.to_mesh = to_mesh
