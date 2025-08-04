@@ -139,7 +139,9 @@ def to_mesh(
 
             # For interior faces (like cavities), we need to check the face normal direction
             # relative to the solid to ensure proper winding
-            is_interior_face = _is_interior_face(face, solid, tolerance) and is_interor_face_override
+            is_interior_face = (
+                _is_interior_face(face, solid, tolerance) and is_interor_face_override
+            )
             if is_interior_face:
                 interior_faces.append(face)
                 is_reversed = not is_reversed
