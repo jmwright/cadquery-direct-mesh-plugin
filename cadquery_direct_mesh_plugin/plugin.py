@@ -123,13 +123,15 @@ def to_mesh(
         # Reset this each time so that we get the correct number of faces per solid
         face_triangles = {}
 
+        # A single closed exterior face can trick the algorithm into thinking it's an interior face
+        is_interor_face_override = True
+        if len(solid.Faces()) == 1:
+            # Force the is_interior_face check to be false
+            is_interor_face_override = False
+
         # Walk through all the faces
         face_idx = 1  # We start at id of 1 to mimic gmsh
         for face in solid.Faces():
-            # If we have already processed this face, skip it
-            # if face in interior_faces or face in exterior_faces:
-            #     continue
-
             # Figure out if the face has a reversed orientation so we can handle the triangles accordingly
             is_reversed = False
             if face.wrapped.Orientation() == TopAbs_REVERSED:
@@ -137,7 +139,7 @@ def to_mesh(
 
             # For interior faces (like cavities), we need to check the face normal direction
             # relative to the solid to ensure proper winding
-            is_interior_face = _is_interior_face(face, solid, tolerance)
+            is_interior_face = _is_interior_face(face, solid, tolerance) and is_interor_face_override
             if is_interior_face:
                 interior_faces.append(face)
                 is_reversed = not is_reversed
