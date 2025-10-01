@@ -129,9 +129,23 @@ def to_mesh(
             # Force the is_interior_face check to be false
             is_interor_face_override = False
 
+        # Order the faces in order of area, largest first
+        sorted_faces = []
+        face_areas = []
+        for face in solid.Faces():
+            area = face.Area()
+            sorted_faces.append((face, area))
+            face_areas.append(area)
+
+        # Sort by area (largest first)
+        sorted_faces.sort(key=lambda x: x[1], reverse=False)
+
+        # Extract just the sorted faces if you need them separately
+        sorted_face_list = [face_info[0] for face_info in sorted_faces]
+
         # Walk through all the faces
         face_idx = 1  # We start at id of 1 to mimic gmsh
-        for face in solid.Faces():
+        for face in sorted_face_list:
             # Figure out if the face has a reversed orientation so we can handle the triangles accordingly
             is_reversed = False
             if face.wrapped.Orientation() == TopAbs_REVERSED:
@@ -152,7 +166,7 @@ def to_mesh(
             loc = TopLoc_Location()
 
             # Perform the tessellation
-            BRepMesh_IncrementalMesh(face.wrapped, tolerance, True, angular_tolerance)
+            BRepMesh_IncrementalMesh(face.wrapped, tolerance, False, angular_tolerance)
             face_mesh = BRep_Tool.Triangulation_s(face.wrapped, loc)
 
             # If this is not an imprinted assembly, override the location of the triangulation
