@@ -114,20 +114,14 @@ def to_mesh(
             # Keep track of the location of each of the solids
             solid_locs.append(child.loc)
 
-    # Step through all of the collected solids and their respective faces to get the vertices
+    # Solid and face IDs need to be unique unless they are a shared face
     solid_idx = 1  # We start at 1 to mimic gmsh
-    interior_faces = []
-    exterior_faces = []
+    face_idx = 1  # We start at id of 1 to mimic gmsh
 
+    # Step through all of the collected solids and their respective faces to get the vertices
     for solid in solids:
         # Reset this each time so that we get the correct number of faces per solid
         face_triangles = {}
-
-        # A single closed exterior face can trick the algorithm into thinking it's an interior face
-        is_interor_face_override = True
-        if len(solid.Faces()) == 1:
-            # Force the is_interior_face check to be false
-            is_interor_face_override = False
 
         # Order the faces in order of area, largest first
         sorted_faces = []
@@ -144,23 +138,11 @@ def to_mesh(
         sorted_face_list = [face_info[0] for face_info in sorted_faces]
 
         # Walk through all the faces
-        face_idx = 1  # We start at id of 1 to mimic gmsh
         for face in sorted_face_list:
             # Figure out if the face has a reversed orientation so we can handle the triangles accordingly
             is_reversed = False
             if face.wrapped.Orientation() == TopAbs_REVERSED:
                 is_reversed = True
-
-            # For interior faces (like cavities), we need to check the face normal direction
-            # relative to the solid to ensure proper winding
-            is_interior_face = (
-                _is_interior_face(face, solid, tolerance) and is_interor_face_override
-            )
-            if is_interior_face:
-                interior_faces.append(face)
-                is_reversed = not is_reversed
-            else:
-                exterior_faces.append(face)
 
             # Location information of the face to place the vertices and edges correctly
             loc = TopLoc_Location()
