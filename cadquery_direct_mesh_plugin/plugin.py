@@ -164,7 +164,11 @@ def to_mesh(
             for node_idx in range(1, face_mesh.NbNodes() + 1):
                 node = face_mesh.Node(node_idx)
                 v_trsf = node.Transformed(Trsf)
-                vertex_coords = (v_trsf.X() * scale_factor, v_trsf.Y() * scale_factor, v_trsf.Z() * scale_factor)
+                vertex_coords = (
+                    v_trsf.X() * scale_factor,
+                    v_trsf.Y() * scale_factor,
+                    v_trsf.Z() * scale_factor,
+                )
 
                 # Use dictionary for O(1) lookup instead of O(n) list operations
                 if vertex_coords in vertex_map:
