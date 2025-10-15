@@ -54,6 +54,7 @@ def to_mesh(
     imprint=True,
     tolerance=0.1,
     angular_tolerance=0.1,
+    scale_factor=1.0,
     include_brep_edges=False,
     include_brep_vertices=False,
 ):
@@ -163,7 +164,7 @@ def to_mesh(
             for node_idx in range(1, face_mesh.NbNodes() + 1):
                 node = face_mesh.Node(node_idx)
                 v_trsf = node.Transformed(Trsf)
-                vertex_coords = (v_trsf.X(), v_trsf.Y(), v_trsf.Z())
+                vertex_coords = (v_trsf.X() * scale_factor, v_trsf.Y() * scale_factor, v_trsf.Z() * scale_factor)
 
                 # Use dictionary for O(1) lookup instead of O(n) list operations
                 if vertex_coords in vertex_map:
