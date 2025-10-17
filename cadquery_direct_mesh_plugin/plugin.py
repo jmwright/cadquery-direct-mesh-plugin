@@ -235,13 +235,13 @@ def to_mesh(
                 else:
                     # We focus on getting the max size compliant in case it and the min are in conflict
                     if max_edge_length > max_mesh_size:
-                        ratio = ratio / (2.0 ** count)
+                        ratio = ratio / (2.0**count)
                     # If the mesh size is too low or we overshot in bringing the max down, step up slowly
                     if (
                         min_edge_length < min_mesh_size
                         and max_edge_length < max_mesh_size
                     ):
-                        ratio = ratio * (1.25 ** count)
+                        ratio = ratio * (1.25**count)
 
                 # If we got a ratio of 1.0 back, we are done
                 if ratio == 1.0:
