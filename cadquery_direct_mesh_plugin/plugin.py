@@ -1,5 +1,7 @@
+import math
 from OCP.TopLoc import TopLoc_Location
 from OCP.BRep import BRep_Tool
+from OCP.BRepTools import BRepTools
 from OCP.BRepMesh import BRepMesh_IncrementalMesh
 from OCP import GCPnts, BRepAdaptor
 from OCP.TopAbs import TopAbs_REVERSED, TopAbs_IN
@@ -49,12 +51,57 @@ def _is_interior_face(face, solid, tolerance=0.01):
     return is_internal_face
 
 
+def find_min_max_edge_length(face_mesh):
+    """
+    Find the shortest and longest triangle edges in the mesh.
+    This information is used to determine if the min/max mesh size has been achieved.
+    """
+
+    # Tracks the minimum and maximum edge lengths
+    min_edge_length = 999999
+    max_edge_length = -999999
+
+    # Check to make sure that the triangles generated fit within the size thresholds
+    for i in range(1, face_mesh.NbTriangles() + 1):
+        # Get the current triangle and its index vertices
+        cur_tri = face_mesh.Triangle(i)
+        idx_1, idx_2, idx_3 = cur_tri.Get()
+
+        # Find the matching vertices
+        v1 = face_mesh.Node(idx_1)
+        v2 = face_mesh.Node(idx_2)
+        v3 = face_mesh.Node(idx_3)
+
+        # Find the length of each of the edges of the triangle
+        l1 = math.sqrt(
+            (v2.X() - v1.X()) ** 2 + (v2.Y() - v1.Y()) ** 2 + (v2.Z() - v1.Z()) ** 2
+        )
+        l2 = math.sqrt(
+            (v3.X() - v2.X()) ** 2 + (v3.Y() - v2.Y()) ** 2 + (v3.Z() - v2.Z()) ** 2
+        )
+        l3 = math.sqrt(
+            (v1.X() - v3.X()) ** 2 + (v1.Y() - v3.Y()) ** 2 + (v1.Z() - v3.Z()) ** 2
+        )
+        min_length = min(l1, l2, l3)
+        max_length = max(l1, l2, l3)
+
+        # Protect against degenerate triangles
+        if min_length > 0 and min_length < min_edge_length:
+            min_edge_length = min_length
+        if max_length > 0 and max_length > max_edge_length:
+            max_edge_length = max_length
+
+        return (min_edge_length, max_edge_length)
+
+
 def to_mesh(
     self,
     imprint=True,
     tolerance=0.1,
     angular_tolerance=0.1,
     scale_factor=1.0,
+    min_mesh_size: float | None = None,
+    max_mesh_size: float | None = None,
     include_brep_edges=False,
     include_brep_vertices=False,
 ):
@@ -79,6 +126,13 @@ def to_mesh(
     solid_locs = []
     solid_brep_edge_segments = []
     solid_brep_vertices = []
+
+    # Make sure we have default values for the min and max mesh size
+    # These are set so wide to prevent needless remeshing
+    if min_mesh_size == None:
+        min_mesh_size = 0.0001
+    if max_mesh_size == None:
+        max_mesh_size = 9999999
 
     # Imprinted assemblies end up being compounds, whereas you have to step through each of the
     # parts in an assembly and extract the solids.
@@ -148,9 +202,76 @@ def to_mesh(
             # Location information of the face to place the vertices and edges correctly
             loc = TopLoc_Location()
 
-            # Perform the tessellation
-            BRepMesh_IncrementalMesh(face.wrapped, tolerance, False, angular_tolerance)
-            face_mesh = BRep_Tool.Triangulation_s(face.wrapped, loc)
+            # So that these values can be adjusted
+            new_tolerance = tolerance
+            new_angular_tolerance = angular_tolerance
+
+            # Perform the tessellation and try a few times to meet the min and max size requirements
+            count = 1
+            while count <= 6:
+                # Warn the user that we could not meet their min/max requirements
+                if count >= 6:
+                    print(
+                        f"WARNING: Maximum number of steps reached ({count - 1}), requested mesh size could not be achieved."
+                    )
+
+                # Perform the tessellation
+                BRepMesh_IncrementalMesh(
+                    face.wrapped, new_tolerance, False, new_angular_tolerance
+                )
+                face_mesh = BRep_Tool.Triangulation_s(face.wrapped, loc)
+
+                # Make sure that the mesh conforms to the sizes set by the user
+                ratio = 1.0
+                min_edge_length, max_edge_length = find_min_max_edge_length(face_mesh)
+
+                # Test whether or not we are in range
+                if (
+                    min_edge_length >= min_mesh_size
+                    and max_edge_length <= max_mesh_size
+                ):
+                    # Mesh is within range
+                    ratio = 1.0
+                else:
+                    # We focus on getting the max size compliant in case it and the min are in conflict
+                    if max_edge_length > max_mesh_size:
+                        ratio = ratio / (2.0 ** count)
+                    # If the mesh size is too low or we overshot in bringing the max down, step up slowly
+                    if (
+                        min_edge_length < min_mesh_size
+                        and max_edge_length < max_mesh_size
+                    ):
+                        ratio = ratio * (1.25 ** count)
+
+                # If we got a ratio of 1.0 back, we are done
+                if ratio == 1.0:
+                    break
+
+                # Clamp the tolerance adjustment within an acceptable range
+                new_tolerance = tolerance
+                if (tolerance * ratio) < 0.001:
+                    # Clamp the ratio
+                    new_tolerance = 0.001
+                    print("WARNING: Requested mesh size could not be achieved.")
+                    break
+                elif (tolerance * ratio) > 0.5:
+                    new_tolerance = 0.5
+                    print("WARNING: Requested mesh size could not be achieved.")
+                    break
+                else:
+                    new_tolerance = tolerance * ratio
+
+                # Clamp the tolerance adjustment within an acceptable range
+                new_angular_tolerance = angular_tolerance
+                if (angular_tolerance * ratio) < 0.5:
+                    # Clamp the value to keep the process from stalling
+                    new_angular_tolerance = 0.5
+                elif (angular_tolerance * ratio) > 2.0:
+                    new_angular_tolerance = 2.0
+                else:
+                    new_angular_tolerance = angular_tolerance * ratio
+
+                count += 1
 
             # If this is not an imprinted assembly, override the location of the triangulation
             if not imprint:
