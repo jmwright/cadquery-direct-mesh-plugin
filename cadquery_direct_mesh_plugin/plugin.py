@@ -89,7 +89,9 @@ def to_mesh(
         face_triangles = {}
 
         # Perform the tessellation
-        BRepMesh_IncrementalMesh(solid.wrapped, tolerance, False, angular_tolerance, parallel)
+        BRepMesh_IncrementalMesh(
+            solid.wrapped, tolerance, False, angular_tolerance, parallel
+        )
 
         # Walk through all the faces
         for face in solid.Faces():
