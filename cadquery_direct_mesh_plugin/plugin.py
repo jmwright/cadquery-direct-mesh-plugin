@@ -7,48 +7,6 @@ from OCP.gp import gp_Pnt, gp_Vec
 import cadquery as cq
 
 
-def _is_interior_face(face, solid, tolerance=0.01):
-    """
-    Determine if a face is interior to a solid (like a cavity wall).
-
-    This is more robust than just checking face orientation, as it considers
-    the geometric relationship between the face and the solid.
-    """
-    # Get geometric surface and parameter bounds
-    surf = BRep_Tool.Surface_s(face.wrapped)
-    u_min, u_max, v_min, v_max = face._uvBounds()
-
-    # # Take center point in UV space on the face
-    u = (u_min + u_max) * 0.5
-    v = (v_min + v_max) * 0.5
-    face_pnt = surf.Value(u, v)
-
-    # Determine if the face is most likely inside the solid
-    is_inside = solid.isInside((face_pnt.X(), face_pnt.Y(), face_pnt.Z()))
-
-    # Determine if the normal of the face points generally towards to the center of the solid
-    is_pointing_inward = False
-    face_normal = face.normalAt((face_pnt.X(), face_pnt.Y(), face_pnt.Z()))
-    solid_center = solid.Center()
-
-    to_center = gp_Vec(face_pnt, gp_Pnt(solid_center.x, solid_center.y, solid_center.z))
-
-    # Dot product: negative = toward, positive = away
-    dot = face_normal.dot(cq.Vector(to_center.Normalized()))
-
-    if dot < 0:
-        is_pointing_inward = False
-    else:
-        is_pointing_inward = True
-
-    # If the face seems to be inside the solid and its normal points inwards, it should be an internal face
-    is_internal_face = False
-    if is_inside and is_pointing_inward:
-        is_internal_face = True
-
-    return is_internal_face
-
-
 def to_mesh(
     self,
     imprint=True,
@@ -57,6 +15,7 @@ def to_mesh(
     scale_factor=1.0,
     include_brep_edges=False,
     include_brep_vertices=False,
+    parallel: bool = True,
 ):
     """
     Converts an assembly to a custom mesh format defined by the CadQuery team.
@@ -66,6 +25,7 @@ def to_mesh(
     :param angular_tolerance: Angular tolerance for tessellation
     :param include_brep_edges: Whether to include BRep edge segments
     :param include_brep_vertices: Whether to include BRep vertices
+    :param parallel: If True, OCCT will use parallel processing to mesh the assembly. Default is True.
     """
 
     # To keep track of the vertices and triangles in the mesh
@@ -101,10 +61,14 @@ def to_mesh(
         for child in self.children:
             # Make sure we end up with a base shape
             obj = child.obj
-            if type(child.obj).__name__ == "Workplane":
-                solids.append(obj.val())
-            else:
+            if isinstance(obj, cq.Workplane):
+                val = obj.val()
+                if isinstance(val, cq.Solid):
+                    solids.append(val)
+            elif isinstance(obj, cq.Solid):
                 solids.append(obj)
+            else:
+                continue
 
             # Use the color set for the assembly component, or use a default color
             if child.color:
@@ -149,7 +113,9 @@ def to_mesh(
             loc = TopLoc_Location()
 
             # Perform the tessellation
-            BRepMesh_IncrementalMesh(face.wrapped, tolerance, False, angular_tolerance)
+            BRepMesh_IncrementalMesh(
+                face.wrapped, tolerance, False, angular_tolerance, parallel
+            )
             face_mesh = BRep_Tool.Triangulation_s(face.wrapped, loc)
 
             # If this is not an imprinted assembly, override the location of the triangulation
