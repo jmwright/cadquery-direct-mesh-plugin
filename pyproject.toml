@@ -8,7 +8,7 @@ version = "0.1.0"
 dependencies = [
   "cadquery",
 ]
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 authors = [
   { name="Jeremy Wright" }
 ]
@@ -28,8 +28,6 @@ classifiers = [
 dev = [
   "pytest",
   "black",
-#  "model_benchmark_zoo@git+https://github.com/fusion-energy/model_benchmark_zoo.git",
-#  "cad_to_dagmc@git+https://github.com/fusion-energy/cad_to_dagmc.git",
 ]
 
 [tool.hatch.metadata]

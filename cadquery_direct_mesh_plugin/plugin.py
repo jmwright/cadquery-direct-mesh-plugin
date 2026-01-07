@@ -63,9 +63,11 @@ def to_mesh(
             obj = child.obj
             if isinstance(obj, cq.Workplane):
                 val = obj.val()
-                if isinstance(val, cq.Solid):
+                if isinstance(val, cq.Solid) or isinstance(val, cq.Compound):
                     solids.append(val)
             elif isinstance(obj, cq.Solid):
+                solids.append(obj)
+            elif isinstance(obj, cq.Compound):
                 solids.append(obj)
             else:
                 continue
