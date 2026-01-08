@@ -15,12 +15,12 @@ authors = [
 maintainers = [
   { name="Jeremy Wright" }
 ]
-description = "CadQuery plugin to go directly from a CadQuery assembly to a mesh without relying on Gmsh."
+description = "CadQuery plugin to go directly from a CadQuery assembly to a mesh without relying on external dependencies."
 readme = "README.md"
 license = {file = "LICENSE"}
 keywords = ["cadquery", "CAD", "engineering", "design", "mesh", "meshing"]
 classifiers = [
-  "Development Status :: 3 - Alpha",
+  "Development Status :: 4 - Beta",
   "Programming Language :: Python"
 ]
 
