@@ -190,8 +190,8 @@ def test_assembly_material_meshing():
     assy.add(cq.Workplane().rect(5, 5).val())
 
     # Mesh the assembly without imprinting
-    mesh = cq.occ_impl.assembly.toMesh(assy, do_imprint=False)
-    imprinted_mesh = cq.occ_impl.assembly.toMesh(assy, do_imprint=True)
+    mesh = assy.toMesh(imprint=False)
+    imprinted_mesh = assy.toMesh(imprint=True)
 
     # Make sure that each mode of meshing has the material in the correct place
     assert mesh["solid_materials"][0] == "copper"

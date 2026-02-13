@@ -54,7 +54,7 @@ def to_mesh(
         for imp_solid, solid_id in imprinted_solids_with_orginal_ids.items():
             # Track down the original assembly object so that we can retrieve materials, if present
             short_id = solid_id[0].split("/")[-1] if "/" in solid_id[0] else solid_id[0]
-            subassy = assy.objects[short_id]
+            subassy = self.objects[short_id]
 
             # Save the assembly material associated with this solid
             if subassy.material:
