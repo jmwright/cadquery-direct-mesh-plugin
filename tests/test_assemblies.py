@@ -169,3 +169,32 @@ def test_vertex_handling(basic_assy, cylinder_assy):
 
     # Make sure we have the correct number of edges
     assert len(mesh["solid_brep_vertices"][0]) == 2
+
+
+def test_assembly_material_meshing():
+    """
+    Makes sure that assembly materials make it into the mesh data structure.
+    """
+
+    # Build a basic assembly with two cubes of different materials
+    cube_1 = cq.Workplane().box(10, 10, 10)
+    cube_2 = cq.Workplane().box(5, 5, 5)
+    assy = cq.Assembly()
+    assy.add(
+        cube_1, name="cube_1", color=cq.Color(0.722, 0.451, 0.2, 1.0), material="copper"
+    )
+    assy.add(cube_2, name="cube_2", material="steel", loc=cq.Location(0, 0, 5))
+
+    # Add two other objects to increase the test coverage
+    assy.add(cq.Workplane().box(5, 5, 5).val(), loc=cq.Location(0, 0, -5))
+    assy.add(cq.Workplane().rect(5, 5).val())
+
+    # Mesh the assembly without imprinting
+    mesh = assy.toMesh(imprint=False)
+    imprinted_mesh = assy.toMesh(imprint=True)
+
+    # Make sure that each mode of meshing has the material in the correct place
+    assert mesh["solid_materials"][0] == "copper"
+    assert mesh["solid_materials"][1] == "steel"
+    assert imprinted_mesh["solid_materials"][0] == "copper"
+    assert imprinted_mesh["solid_materials"][1] == "steel"

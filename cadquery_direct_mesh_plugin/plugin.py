@@ -37,6 +37,7 @@ def to_mesh(
     imprinted_solids_with_orginal_ids = None
     solid_colors = []
     solid_locs = []
+    solid_materials = []
     solid_brep_edge_segments = []
     solid_brep_vertices = []
 
@@ -48,6 +49,16 @@ def to_mesh(
             imprinted_assembly,
             imprinted_solids_with_orginal_ids,
         ) = cq.occ_impl.assembly.imprint(self)
+
+        # Collect the materials
+        for imp_solid, solid_id in imprinted_solids_with_orginal_ids.items():
+            # Track down the original assembly object so that we can retrieve materials, if present
+            short_id = solid_id[0].split("/")[-1] if "/" in solid_id[0] else solid_id[0]
+            subassy = self.objects[short_id]
+
+            # Save the assembly material associated with this solid
+            if subassy.material:
+                solid_materials.append(subassy.material.name)
 
         # Extract the solids from the imprinted assembly because we should not mesh the compound
         for solid in imprinted_assembly.Solids():
@@ -80,6 +91,10 @@ def to_mesh(
 
             # Keep track of the location of each of the solids
             solid_locs.append(child.loc)
+
+            # Keep track of the materials
+            if child.material:
+                solid_materials.append(child.material.name)
 
     # Solid and face IDs need to be unique unless they are a shared face
     solid_idx = 1  # We start at 1 to mimic gmsh
@@ -249,6 +264,7 @@ def to_mesh(
         "vertices": vertices,
         "solid_face_triangle_vertex_map": solid_face_triangle,
         "solid_colors": solid_colors,
+        "solid_materials": solid_materials,
         "solid_brep_edge_segments": solid_brep_edge_segments,
         "solid_brep_vertices": solid_brep_vertices,
         "imprinted_assembly": imprinted_assembly,
