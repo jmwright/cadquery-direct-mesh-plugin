@@ -198,3 +198,47 @@ def test_assembly_material_meshing():
     assert mesh["solid_materials"][1] == "steel"
     assert imprinted_mesh["solid_materials"][0] == "copper"
     assert imprinted_mesh["solid_materials"][1] == "steel"
+
+
+def test_overlapping_spheres_shared_faces():
+    """
+    Tests that two overlapping spheres produce shared faces with non-zero
+    triangles on both solids after imprinting.
+
+    After imprint, BRepMesh only tessellates a shared face for whichever
+    solid is meshed first.  The face-hash reuse logic should detect the
+    shared face and copy the triangles to the second solid so that both
+    volumes are watertight.
+    """
+    from OCP.BRepPrimAPI import BRepPrimAPI_MakeSphere
+    from OCP.BRepAlgoAPI import BRepAlgoAPI_Cut
+    from OCP.gp import gp_Pnt
+
+    d, r = 3.0, 5.0
+
+    sphere1_shape = BRepPrimAPI_MakeSphere(gp_Pnt(-d, 0, 0), r).Shape()
+    sphere2_shape = BRepPrimAPI_MakeSphere(gp_Pnt(d, 0, 0), r).Shape()
+    crescent_shape = BRepAlgoAPI_Cut(sphere2_shape, sphere1_shape).Shape()
+
+    assy = cq.Assembly()
+    assy.add(cq.Workplane().add(cq.Solid(sphere1_shape)))
+    assy.add(cq.Workplane().add(cq.Solid(crescent_shape)))
+
+    mesh = assy.toMesh(imprint=True, tolerance=0.1, angular_tolerance=0.1)
+    tris = mesh["solid_face_triangle_vertex_map"]
+
+    # Both solids must be present
+    assert len(tris) == 2
+
+    # Every face on every solid must have at least one triangle
+    for solid_id, face_map in tris.items():
+        for face_id, triangles in face_map.items():
+            assert len(triangles) > 0, (
+                f"solid {solid_id}, face {face_id} has 0 triangles"
+            )
+
+    # At least one face_id must appear in both solids (the shared face)
+    faces_solid1 = set(tris[1].keys())
+    faces_solid2 = set(tris[2].keys())
+    shared = faces_solid1 & faces_solid2
+    assert len(shared) > 0, "No shared faces detected between the two solids"

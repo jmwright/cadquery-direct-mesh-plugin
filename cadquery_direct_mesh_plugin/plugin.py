@@ -100,6 +100,15 @@ def to_mesh(
     solid_idx = 1  # We start at 1 to mimic gmsh
     face_idx = 1  # We start at id of 1 to mimic gmsh
 
+    # Track faces we have already processed so that shared faces (after
+    # imprint) reuse the same face_idx and triangles.  After imprint, two
+    # solids can share a topological face; BRepMesh only tessellates it for
+    # whichever solid is meshed first, leaving 0 triangles on the second.
+    # By detecting the match via a geometric hash (center + area) and
+    # reusing the earlier face_idx and triangles we produce a proper shared
+    # surface in the DAGMC h5m file.
+    seen_faces = {}  # (cx, cy, cz, area) -> (face_idx, triangles)
+
     # Step through all of the collected solids and their respective faces to get the vertices
     for solid in solids:
         # Reset this each time so that we get the correct number of faces per solid
@@ -112,6 +121,18 @@ def to_mesh(
 
         # Walk through all the faces
         for face in solid.Faces():
+            # Detect shared faces by their geometry (center + area).
+            c = face.Center().toTuple()
+            face_hash = (round(c[0], 6), round(c[1], 6), round(c[2], 6),
+                         round(face.Area(), 6))
+
+            if face_hash in seen_faces:
+                # Shared face — reuse the face_idx and triangles from
+                # whichever solid first tessellated this face.
+                prev_face_idx, prev_triangles = seen_faces[face_hash]
+                face_triangles[prev_face_idx] = prev_triangles
+                continue
+
             # Figure out if the face has a reversed orientation so we can handle the triangles accordingly
             is_reversed = False
             if face.wrapped.Orientation() == TopAbs_REVERSED:
@@ -175,6 +196,9 @@ def to_mesh(
 
             # Save this triangle for the current face
             face_triangles[face_idx] = cur_triangles
+
+            # Remember this face for reuse by other solids
+            seen_faces[face_hash] = (face_idx, cur_triangles)
 
             # Move to the next face
             face_idx += 1
