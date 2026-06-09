@@ -198,3 +198,42 @@ def test_assembly_material_meshing():
     assert mesh["solid_materials"][1] == "steel"
     assert imprinted_mesh["solid_materials"][0] == "copper"
     assert imprinted_mesh["solid_materials"][1] == "steel"
+
+
+def test_assembly_identity_meshing():
+    """
+    Makes sure that component identities (assembly names) make it into the mesh data
+    structure, independent of materials. This allows downstream consumers to distinguish
+    components that share a material (e.g. so OpenMC can use a CellFilter instead of having
+    to duplicate materials).
+    """
+
+    # Build an assembly with two components that share a material but have distinct names
+    first_wall = cq.Workplane().box(10, 10, 10)
+    divertor = cq.Workplane().box(5, 5, 5)
+    assy = cq.Assembly()
+    assy.add(first_wall, name="first_wall", material="steel")
+    assy.add(divertor, name="divertor", material="steel", loc=cq.Location(0, 0, 8))
+
+    # Add a component with no material to confirm it is excluded from both lists, keeping the
+    # two lists in sync
+    assy.add(cq.Workplane().box(2, 2, 2), name="no_material", loc=cq.Location(0, 0, -8))
+
+    # Mesh the assembly both ways
+    mesh = assy.toMesh(imprint=False)
+    imprinted_mesh = assy.toMesh(imprint=True)
+
+    # The material is shared (deduplicatable) across both components, and the material-less
+    # component does not appear
+    assert mesh["solid_materials"] == ["steel", "steel"]
+    assert imprinted_mesh["solid_materials"] == ["steel", "steel"]
+
+    # The identity is distinct per component, in lockstep with the solid ordering
+    assert mesh["solid_identities"] == ["first_wall", "divertor"]
+    assert imprinted_mesh["solid_identities"] == ["first_wall", "divertor"]
+
+    # Materials and identities must stay in sync (same length, same index -> same solid)
+    assert len(mesh["solid_identities"]) == len(mesh["solid_materials"])
+    assert len(imprinted_mesh["solid_identities"]) == len(
+        imprinted_mesh["solid_materials"]
+    )
