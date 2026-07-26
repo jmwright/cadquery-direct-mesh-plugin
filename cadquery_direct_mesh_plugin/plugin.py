@@ -99,6 +99,14 @@ def to_mesh(
     # Solid and face IDs need to be unique unless they are a shared face
     solid_idx = 1  # We start at 1 to mimic gmsh
     face_idx = 1  # We start at id of 1 to mimic gmsh
+    # Imprinting makes the face shared between two solids the same underlying
+    # face, so faces that compare equal must be given the same id. Shape
+    # equality here is TopoDS_Shape.IsSame, which ignores orientation, so both
+    # solids produce the same key for the shared face. Without this each solid
+    # contributes its own copy of the interface, and consumers that build one
+    # surface per face id end up with two coincident surfaces rather than one
+    # surface shared by two solids.
+    face_ids_by_face = {}
 
     # Step through all of the collected solids and their respective faces to get the vertices
     for solid in solids:
@@ -173,11 +181,19 @@ def to_mesh(
 
                 cur_triangles.append(triangle_vertex_indices)
 
-            # Save this triangle for the current face
-            face_triangles[face_idx] = cur_triangles
+            # Reuse the id if this face has already been seen on another solid
+            if face in face_ids_by_face:
+                this_face_idx = face_ids_by_face[face]
+            else:
+                this_face_idx = face_idx
+                face_ids_by_face[face] = this_face_idx
 
-            # Move to the next face
-            face_idx += 1
+            # Save this triangle for the current face
+            face_triangles[this_face_idx] = cur_triangles
+
+            # Move to the next face, but only if this face consumed a new id
+            if this_face_idx == face_idx:
+                face_idx += 1
 
         solid_face_triangle[solid_idx] = face_triangles
 
