@@ -198,3 +198,42 @@ def test_assembly_material_meshing():
     assert mesh["solid_materials"][1] == "steel"
     assert imprinted_mesh["solid_materials"][0] == "copper"
     assert imprinted_mesh["solid_materials"][1] == "steel"
+
+
+def test_imprinted_shared_face_shares_id():
+    """
+    Makes sure an imprinted face that is shared by two solids is given the same
+    face id in both of them.
+
+    Imprinting makes the interface between two touching solids the same
+    underlying face. Consumers such as DAGMC exporters build one surface per
+    face id, so if each solid reports its own id for that interface they end up
+    with two coincident surfaces instead of one surface shared by two solids,
+    and the resulting model is not watertight there.
+    """
+
+    # Two cuboids sharing a 10 x 10 face
+    assy = cq.Assembly()
+    assy.add(cq.Workplane().box(10, 10, 10))
+    assy.add(cq.Workplane().transformed(offset=(0, 7, 0)).box(10, 4, 10))
+
+    mesh = assy.toMesh(imprint=True)
+    face_map = mesh["solid_face_triangle_vertex_map"]
+
+    # Both solids should still report six faces each
+    assert len(face_map) == 2
+    assert len(face_map[1]) == 6
+    assert len(face_map[2]) == 6
+
+    # Collect the solids each face id appears in
+    solids_by_face_id = {}
+    for solid_id, faces in face_map.items():
+        for face_id in faces:
+            solids_by_face_id.setdefault(face_id, []).append(solid_id)
+
+    shared = [f for f, solids in solids_by_face_id.items() if len(solids) > 1]
+
+    # Exactly one face is shared, so the two solids use 11 ids rather than 12
+    assert len(shared) == 1
+    assert len(solids_by_face_id) == 11
+    assert sorted(solids_by_face_id[shared[0]]) == [1, 2]
